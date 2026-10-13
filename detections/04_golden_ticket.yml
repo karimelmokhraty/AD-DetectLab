@@ -1,0 +1,53 @@
+title: Golden Ticket - TGS Request Without Matching TGT (AS-REQ)
+id: 7c9e1f3a-2b5d-4e8a-9c1f-golden-ticket-04
+status: experimental
+description: |
+  Detects Kerberos Service Ticket (TGS, Event 4769) requests for an account
+  with no corresponding Ticket Granting Ticket (TGT, Event 4768) request in
+  the same time window. A forged TGT built offline using the krbtgt hash
+  (Golden Ticket, T1558.001) is never requested from the Domain Controller
+  via a normal AS-REQ, so it never produces a 4768 event — but it is still
+  accepted by the DC for service ticket requests, producing 4769 events.
+  This gap (TGS present, TGT absent) is the core detection logic.
+author: Karim Elmokhraty
+date: 2026-10-13
+references:
+  - https://attack.mitre.org/techniques/T1558/001/
+logsource:
+  product: windows
+  service: security
+  category: authentication
+detection:
+  selection_tgt:
+    EventID: 4768
+  selection_tgs:
+    EventID: 4769
+  filter_machine_accounts:
+    Account_Name|endswith: '$'
+  condition: selection_tgs and not selection_tgt and not filter_machine_accounts
+fields:
+  - Account_Name
+  - Client_Address
+  - Service_Name
+  - Ticket_Encryption_Type
+falsepositives:
+  - Machine accounts ($) performing background ticket renewal outside the
+    search window (must be excluded, see filter above)
+  - Normalize Account_Name before correlating 4768 vs 4769: in raw Windows
+    Security events, 4768's Account_Name has no @domain suffix while 4769's
+    does (e.g. "karim" vs "karim@CORP.LOCAL") - without stripping this,
+    every account will incorrectly show AS_REQ_count=0
+  - A TGT requested outside the search time range (widen the window or
+    confirm with a dedicated search for EventID=4768 by Account_Name)
+level: high
+tags:
+  - attack.credential_access
+  - attack.t1558.001
+  - attack.defense_evasion
+
+splunk_query: |
+  index=ad_lab (EventCode=4768 OR EventCode=4769)
+  | eval Account_Name=lower(replace(Account_Name, "@CORP\.LOCAL", ""))
+  | search Account_Name!="*$"
+  | stats count(eval(EventCode=4768)) as AS_REQ_count, count(eval(EventCode=4769)) as TGS_count by Account_Name
+  | where AS_REQ_count=0 AND TGS_count>0

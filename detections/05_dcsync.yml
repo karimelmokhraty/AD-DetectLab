@@ -1,0 +1,71 @@
+title: DCSync - Suspicious Directory Replication Request
+id: 9a2f6e4c-8d1b-4f7a-b3e2-dcsync-05
+status: experimental
+description: |
+  Detects accounts requesting Active Directory replication rights
+  (DS-Replication-Get-Changes / DS-Replication-Get-Changes-All) that are
+  normally held only by Domain Controllers. A non-DC account exercising
+  these rights is the signature of a DCSync attack (T1003.006), used to
+  pull password hashes (including krbtgt) directly from AD without
+  touching LSASS or the NTDS.dit file on disk.
+author: Karim Elmokhraty
+date: 2026-10-13
+references:
+  - https://attack.mitre.org/techniques/T1003/006/
+logsource:
+  product: windows
+  service: security
+  category: object_access
+detection:
+  selection:
+    EventID: 4662
+    raw|contains:
+      - '1131f6aa-9c07-11d1-f79f-00c04fc2dcd2'  # DS-Replication-Get-Changes
+      - '1131f6ad-9c07-11d1-f79f-00c04fc2dcd2'  # DS-Replication-Get-Changes-All
+  filter_dcs:
+    Account_Name|endswith: '$'
+  condition: selection and not filter_dcs
+fields:
+  - Account_Name
+  - Object_Name
+  - count (volume is itself an indicator - see note below)
+falsepositives:
+  - Domain Controller computer accounts performing legitimate replication
+    (excluded above via the $ filter)
+  - Legitimate backup/monitoring service accounts explicitly granted
+    replication rights (should be inventoried and allow-listed, not
+    silently ignored)
+level: critical
+tags:
+  - attack.credential_access
+  - attack.t1003.006
+
+requires:
+  note: |
+    This event is only generated if Object Access auditing (DS Access >
+    Directory Service Access) is enabled AND a SACL is set on the domain
+    NC head (DC=corp,DC=local) to audit "Everyone" for the replication
+    extended rights. This is NOT enabled by default - verify before
+    relying on this detection.
+
+implementation_note: |
+  The GUID does not live inside Splunk's auto-extracted "Properties" field
+  (that field only captures the first line, "Control Access" - the GUID
+  sits on its own unlabeled line below it in the raw event text). Field-
+  based filtering on Properties will silently return zero matches. Search
+  the raw event text directly instead (shown below). Also note: EventID
+  4662 carries no Client_Address/source-IP field, unlike 4768/4769 -
+  attribution here is by Account_Name only; tying it to a source IP
+  requires correlating the Logon_ID with a 4624 logon event.
+
+splunk_query: |
+  index=ad_lab EventCode=4662 "1131f6aa-9c07-11d1-f79f-00c04fc2dcd2"
+  | search Account_Name!="*$"
+  | stats count, earliest(_time) as first_seen, latest(_time) as last_seen by Account_Name
+  | convert ctime(first_seen) ctime(last_seen)
+
+# Volume signature: a real DCSync dump (secretsdump -just-dc) replicates
+# every object in the domain one at a time, producing thousands of 4662
+# events clustered within the same second - a strong corroborating signal
+# on top of "non-DC account used this right at all".
+# Observed in this lab: karim -> 5,190 events at 2026-10-13 16:54:49.

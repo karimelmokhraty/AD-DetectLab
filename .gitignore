@@ -1,0 +1,8 @@
+# Never commit real secrets/hashes/tickets from the lab
+*.ccache
+*.kirbi
+*hash*.txt
+secretsdump_output*
+*.ntds
+.DS_Store
+Thumbs.db

@@ -1,0 +1,180 @@
+<form version="1.1" theme="dark">
+  <label>AD-DetectLab — Attack Detection Overview</label>
+  <description>Correlated detections for Kerberoasting, AS-REP Roasting, DCSync, Golden Ticket, and Pass-the-Hash</description>
+
+  <fieldset submitButton="false" autoRun="true">
+    <input type="time" token="time_range">
+      <label>Time Range</label>
+      <default>
+        <earliest>-30d@d</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+  </fieldset>
+
+  <row>
+    <panel>
+      <single>
+        <title>Kerberoasting Hits</title>
+        <search>
+          <query>index=ad_lab EventCode=4769 Ticket_Encryption_Type=0x17 Account_Name!="*$" | stats count by Account_Name | where count > 5 | stats count</query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="colorMode">block</option>
+        <option name="rangeColors">["0x53a051","0xdc4e41"]</option>
+        <option name="rangeValues">[1]</option>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>AS-REP Roasting Hits</title>
+        <search>
+          <query>index=ad_lab EventCode=4768 Pre_Authentication_Type=0 | stats dc(Account_Name) as accounts</query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="colorMode">block</option>
+        <option name="rangeColors">["0x53a051","0xdc4e41"]</option>
+        <option name="rangeValues">[1]</option>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>DCSync Attempts (non-DC accounts)</title>
+        <search>
+          <query>index=ad_lab EventCode=4662 "1131f6aa-9c07-11d1-f79f-00c04fc2dcd2" Account_Name!="*$" | stats dc(Account_Name) as accounts</query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="colorMode">block</option>
+        <option name="rangeColors">["0x53a051","0xdc4e41"]</option>
+        <option name="rangeValues">[1]</option>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>Golden Ticket Indicators</title>
+        <search>
+          <query>index=ad_lab (EventCode=4768 OR EventCode=4769) | eval Account_Name=lower(replace(Account_Name, "@CORP\.LOCAL", "")) | search Account_Name!="*$" | bucket _time span=1h | stats count(eval(EventCode=4768)) as AS_REQ_count, count(eval(EventCode=4769)) as TGS_count by Account_Name, _time | where AS_REQ_count=0 AND TGS_count>0 | stats count</query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="colorMode">block</option>
+        <option name="rangeColors">["0x53a051","0xdc4e41"]</option>
+        <option name="rangeValues">[1]</option>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>Pass-the-Hash (NTLM) Logons</title>
+        <search>
+          <query>index=ad_lab EventCode=4624 Logon_Type=3 Authentication_Package=NTLM Account_Name!="*$" | stats count</query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="colorMode">block</option>
+        <option name="rangeColors">["0x53a051","0xdc4e41"]</option>
+        <option name="rangeValues">[1]</option>
+      </single>
+    </panel>
+  </row>
+
+  <row>
+    <panel>
+      <title>1a. Kerberoasting — Who is requesting RC4 tickets (attacker)</title>
+      <table>
+        <search>
+          <query>index=ad_lab EventCode=4769 Ticket_Encryption_Type=0x17 Account_Name!="*$" | stats count as tgs_requests, dc(Service_Name) as distinct_targets by Account_Name | where tgs_requests > 5 | sort - tgs_requests</query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+      </table>
+    </panel>
+    <panel>
+      <title>1b. Kerberoasting — Which accounts were targeted (victims)</title>
+      <table>
+        <search>
+          <query>index=ad_lab EventCode=4769 Ticket_Encryption_Type=0x17 Account_Name!="*$" | stats count by Service_Name | sort - count</query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+      </table>
+    </panel>
+  </row>
+
+  <row>
+    <panel>
+      <title>2. AS-REP Roasting — Accounts with DONT_REQ_PREAUTH</title>
+      <table>
+        <search>
+          <query>index=ad_lab EventCode=4768 Pre_Authentication_Type=0 | stats count, values(Client_Address) as source_ip by Account_Name | sort - count</query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+      </table>
+    </panel>
+  </row>
+
+  <row>
+    <panel>
+      <title>3. DCSync — Non-DC accounts requesting replication rights</title>
+      <table>
+        <search>
+          <query>index=ad_lab EventCode=4662 "1131f6aa-9c07-11d1-f79f-00c04fc2dcd2" Account_Name!="*$" | stats count, earliest(_time) as first_seen, latest(_time) as last_seen by Account_Name | convert ctime(first_seen) ctime(last_seen) | sort - count</query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+      </table>
+    </panel>
+    <panel>
+      <title>4. Golden Ticket — TGS requests with no matching TGT</title>
+      <table>
+        <search>
+          <query>index=ad_lab (EventCode=4768 OR EventCode=4769) | eval Account_Name=lower(replace(Account_Name, "@CORP\.LOCAL", "")) | search Account_Name!="*$" | bucket _time span=1h | stats count(eval(EventCode=4768)) as AS_REQ_count, count(eval(EventCode=4769)) as TGS_count by Account_Name, _time | where AS_REQ_count=0 AND TGS_count>0 | sort - _time</query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+      </table>
+    </panel>
+  </row>
+
+  <row>
+    <panel>
+      <title>5. Pass-the-Hash — NTLM network logons for domain accounts</title>
+      <table>
+        <search>
+          <query>index=ad_lab EventCode=4624 Logon_Type=3 Authentication_Package=NTLM Account_Name!="*$" | table _time, Account_Name, Source_Network_Address, Workstation_Name | sort - _time</query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+      </table>
+    </panel>
+    <panel>
+      <title>6. Attack Timeline — All suspicious event types</title>
+      <chart>
+        <search>
+          <query>index=ad_lab (EventCode=4768 OR EventCode=4769 OR EventCode=4662 OR EventCode=4624)
+| eval attack_type=case(
+    EventCode=4662 AND searchmatch("1131f6aa-9c07-11d1-f79f-00c04fc2dcd2"), "DCSync",
+    EventCode=4624 AND Authentication_Package="NTLM" AND Logon_Type=3, "Pass-the-Hash",
+    EventCode=4769 AND Ticket_Encryption_Type="0x17", "Kerberoasting",
+    EventCode=4768 AND Pre_Authentication_Type="0", "AS-REP Roasting",
+    1=1, "other")
+| where attack_type!="other"
+| timechart span=1h count by attack_type</query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.legend.placement">bottom</option>
+      </chart>
+    </panel>
+  </row>
+</form>

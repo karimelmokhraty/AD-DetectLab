@@ -1,0 +1,64 @@
+title: Kerberoasting - RC4 Service Ticket Requests
+id: 1f4a8c2e-5b9d-4e67-8a21-kerb-01
+status: experimental
+description: |
+  Detects Kerberos Service Ticket (TGS, Event 4769) requests encrypted
+  with RC4 (0x17) instead of AES. Kerberoasting (T1558.003) tools like
+  impacket-GetUserSPNs deliberately downgrade the requested encryption
+  to RC4 because RC4-encrypted TGS tickets are crackable offline with
+  tools like hashcat, while AES-encrypted ones are not practical to crack.
+  A single account requesting many RC4 TGS tickets for many different
+  service accounts in a short window is the signature of SPN enumeration
+  and mass ticket harvesting.
+author: Karim Elmokhraty
+date: 2026-10-13
+references:
+  - https://attack.mitre.org/techniques/T1558/003/
+logsource:
+  product: windows
+  service: security
+  category: authentication
+detection:
+  selection:
+    EventID: 4769
+    Ticket_Encryption_Type: '0x17'
+  filter_machine_accounts:
+    Account_Name|endswith: '$'
+  condition: selection and not filter_machine_accounts
+fields:
+  - Account_Name     # the REQUESTER (attacker) - see note below
+  - Service_Name      # the TARGETED service account (the real victim)
+  - Client_Address
+falsepositives:
+  - Legacy applications without AES support configured on the domain
+  - Scheduled SPN health-check / inventory tools
+level: high
+tags:
+  - attack.credential_access
+  - attack.t1558.003
+
+critical_field_note: |
+  Account_Name in a 4769 event is the account that REQUESTED the ticket
+  (the attacker's own authenticated identity), NOT the service account
+  being targeted. The targeted/"roasted" account is in Service_Name.
+  This matters for both the detection logic and the dashboard:
+  - Group by Account_Name to find WHO is enumerating/requesting tickets
+    (the attacker - e.g. karim requested 51 tickets in this lab)
+  - Group by Service_Name (distinct count per requester, or just list
+    them) to see WHICH accounts were targeted (the real "roastable"
+    victims, e.g. svc-sql here)
+  Confirmed in this lab: all 51 RC4 TGS requests had Account_Name=karim
+  and 51 distinct Service_Name values (one request per domain account
+  with an SPN) - exactly matching GetUserSPNs' "Recovered 1/51" output.
+
+splunk_query_attacker: |
+  # Who is requesting large numbers of RC4 tickets (the attacker)
+  index=ad_lab EventCode=4769 Ticket_Encryption_Type=0x17 Account_Name!="*$"
+  | stats count, dc(Service_Name) as distinct_targets by Account_Name
+  | where count > 5
+
+splunk_query_targets: |
+  # Which service accounts were targeted (the roastable victims)
+  index=ad_lab EventCode=4769 Ticket_Encryption_Type=0x17 Account_Name!="*$"
+  | stats count by Service_Name
+  | sort - count

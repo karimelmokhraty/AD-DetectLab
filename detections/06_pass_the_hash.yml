@@ -1,0 +1,49 @@
+title: Pass-the-Hash - NTLM Authentication for Privileged Account
+id: 3d8f5a1e-7c2b-4e9d-a650-pth-06
+status: experimental
+description: |
+  Detects NTLM-authenticated network logons (Logon Type 3) for accounts
+  that normally authenticate via Kerberos in a domain environment (e.g.
+  Administrator, service accounts). Pass-the-Hash (T1550.002) uses a
+  stolen NTLM hash directly as the authentication secret, bypassing
+  Kerberos entirely - so the resulting logon shows
+  Authentication_Package=NTLM instead of Kerberos, which is anomalous for
+  a domain-joined environment where Kerberos is the default.
+author: Karim Elmokhraty
+date: 2026-10-13
+references:
+  - https://attack.mitre.org/techniques/T1550/002/
+logsource:
+  product: windows
+  service: security
+  category: authentication
+detection:
+  selection:
+    EventID: 4624
+    Logon_Type: 3
+    Authentication_Package: NTLM
+  filter_machine_accounts:
+    Account_Name|endswith: '$'
+  condition: selection and not filter_machine_accounts
+fields:
+  - Account_Name
+  - Source_Network_Address
+  - Workstation_Name
+falsepositives:
+  - Legacy applications or scripts explicitly using NTLM
+  - Logons from non-domain-joined devices (NTLM is the fallback there)
+  - Local account authentication (not domain accounts) - filter to domain
+    accounts of interest only
+level: high
+tags:
+  - attack.lateral_movement
+  - attack.t1550.002
+
+splunk_query: |
+  index=ad_lab EventCode=4624 Logon_Type=3 Authentication_Package=NTLM
+  | search Account_Name!="*$"
+  | table _time, Account_Name, Source_Network_Address, Workstation_Name
+
+observed_in_lab: |
+  Administrator | Source_Network_Address=192.168.154.129 (Kali) | Workstation_Name=(blank)
+  Confirmed via impacket-psexec -hashes <LM:NTLM> Administrator@192.168.154.10

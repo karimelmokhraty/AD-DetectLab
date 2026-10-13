@@ -1,0 +1,52 @@
+title: BloodHound-style AD Attack Path Recon
+id: 7f1a4e2c-8b35-4d19-a001-bhound-03
+status: experimental
+description: |
+  BloodHound (and SharpHound collection) is reconnaissance, not exploitation
+  - it does not generate a single distinctive Windows event by itself.
+  Detection here focuses on the *collection* step (LDAP/SMB/WMI enumeration
+  volume from a single non-DC source against many objects in a short window)
+  rather than a specific event ID, since the graph analysis itself happens
+  offline in Neo4j and produces no telemetry on the domain.
+author: Karim Elmokhraty
+date: 2026-10-13
+references:
+  - https://attack.mitre.org/techniques/T1087/002/
+  - https://attack.mitre.org/techniques/T1482/
+logsource:
+  product: windows
+  service: security
+  category: directory_service_access
+detection:
+  selection:
+    EventID: 4662
+  condition: selection
+fields:
+  - Account_Name
+  - Client_Address
+falsepositives:
+  - Legitimate AD auditing/inventory tools (e.g. scheduled compliance scans)
+  - Help-desk or sysadmin tooling that enumerates group membership broadly
+level: medium
+tags:
+  - attack.discovery
+  - attack.t1087.002
+  - attack.t1482
+
+splunk_query: |
+  # High-volume LDAP read activity from a single account in a short window
+  # is a weak but useful proxy signal for SharpHound-style collection.
+  index=ad_lab EventCode=4662
+  | bucket _time span=10m
+  | stats dc(guid) as distinct_objects_touched by Account_Name, _time
+  | where distinct_objects_touched > 100
+
+observed_in_lab: |
+  BloodHound CE used to map shortest path karim -> DOMAIN ADMINS, revealing
+  GenericAll/AllExtendedRights/DCSync edges. This is how the DCSync
+  misconfiguration (see 05_dcsync.yml) was actually discovered before being
+  exploited. Baseline "DCSync" edge holders pre-seeded in the lab for realism:
+  CARMEN_CAMPBELL, WILBUR_LAWSON, CHRISTA_LINDSEY, LOUISA_ALLISON,
+  BEATRICE_FARMER, ADMINISTRATOR, DC01$ - notably karim was NOT part of this
+  baseline set, confirming karim's rights were a distinct, investigable
+  misconfiguration rather than lab noise.

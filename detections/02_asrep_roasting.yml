@@ -1,0 +1,48 @@
+title: AS-REP Roasting - Kerberos Pre-Authentication Disabled
+id: 2b5c9d3f-6a1e-4f78-9b32-asrep-02
+status: experimental
+description: |
+  Detects Kerberos AS-REQ (Event 4768) requests where pre-authentication was
+  not required (Pre_Authentication_Type=0). AS-REP Roasting abuses accounts
+  with the "Do not require Kerberos preauthentication" flag set
+  (UF_DONT_REQUIRE_PREAUTH) - an attacker can request an AS-REP for such an
+  account without knowing its password, and the AS-REP is encrypted with the
+  account's own password-derived key, making it crackable offline
+  (impacket-GetNPUsers + hashcat -m 18200).
+author: Karim Elmokhraty
+date: 2026-10-13
+references:
+  - https://attack.mitre.org/techniques/T1558/004/
+logsource:
+  product: windows
+  service: security
+  category: authentication
+detection:
+  selection:
+    EventID: 4768
+    Pre_Authentication_Type: '0'
+  filter_machine_accounts:
+    Account_Name|endswith: '$'
+  condition: selection and not filter_machine_accounts
+fields:
+  - Account_Name
+  - Client_Address
+falsepositives:
+  - Legacy devices or applications that genuinely do not support Kerberos
+    pre-authentication (rare in modern environments)
+level: high
+tags:
+  - attack.credential_access
+  - attack.t1558.004
+
+splunk_query: |
+  index=ad_lab EventCode=4768 Pre_Authentication_Type=0
+  | stats count, values(Client_Address) as source_ip by Account_Name
+  | sort - count
+
+observed_in_lab: |
+  svc-helpdesk (created with -DoesNotRequirePreAuth $true) cracked via
+  impacket-GetNPUsers + hashcat -m 18200 -> password "Welcome1".
+  178 matching 4768/Pre_Auth_Type=0 events observed across the BadBlood-
+  populated domain in a single enumeration pass, all from source_ip
+  ::ffff:192.168.154.129 (Kali).
