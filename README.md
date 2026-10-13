@@ -577,4 +577,4 @@ AD-DetectLab/
 
 ## Author
 
-**Karim Elmokhraty** — Cybersecurity student, working toward a SOC Analyst / Blue Team role.
+**Karim Elmokhraty** — Cybersecurity Engineer, working toward a SOC Analyst / Blue Team role.
