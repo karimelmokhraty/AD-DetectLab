@@ -1,0 +1,8 @@
+# Pinned so CI validates against the same versions the rules were written
+# and tested on. A backend upgrade can silently change generated query syntax,
+# so bump these deliberately and review the queries/ diff that results.
+sigma-cli==3.1.0
+pysigma==1.5.1
+pysigma-backend-splunk==2.1.0
+pysigma-backend-elasticsearch==2.1.1
+PyYAML>=6.0

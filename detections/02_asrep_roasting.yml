@@ -1,5 +1,5 @@
 title: AS-REP Roasting - Kerberos Pre-Authentication Disabled
-id: 2b5c9d3f-6a1e-4f78-9b32-asrep-02
+id: 5cdd10e3-43bf-4191-947d-f60ce82ae59e  # asrep-roasting
 status: experimental
 description: |
   Detects Kerberos AS-REQ (Event 4768) requests where pre-authentication was

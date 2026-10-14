@@ -1,5 +1,5 @@
 title: DCSync - Suspicious Directory Replication Request
-id: 9a2f6e4c-8d1b-4f7a-b3e2-dcsync-05
+id: 72c7f242-f1ae-4d23-a9c9-53c23d1b1ded  # dcsync
 status: experimental
 description: |
   Detects accounts requesting Active Directory replication rights

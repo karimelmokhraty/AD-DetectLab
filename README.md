@@ -524,6 +524,88 @@ Full PDF export of the final, working dashboard (all 6 panels correct): [`dashbo
 
 ---
 
+## Part 9 — Treating the Detections Like Code
+
+After the dashboard was working I looked at what I'd actually built and didn't like it. The six detections lived as saved searches inside Splunk. That meant no version history — edit a rule and the old version is just gone. No rollback. No tests; I'd verified each one by eyeballing the results once, on the day I wrote it. And the SPL was locked to Splunk, so the day I touch Sentinel or Elastic, none of it comes with me.
+
+So I moved the Sigma files from being documentation to being the actual source, and put a CI pipeline around them.
+
+**The pipeline** (`.github/workflows/validate-detections.yml`) runs on every push:
+
+1. `sigma check detections/` — is every rule valid Sigma?
+2. `python tests/run_tests.py` — does every rule still match the attack and ignore normal traffic?
+3. `python tools/generate_queries.py` + `git diff --exit-code` — do the committed queries still match their source?
+
+Step 2 is the one that matters. Each rule is pinned to two samples: an attack sample it **must** match, and a normal-traffic baseline it **must not**. Picture me six months from now tuning a rule to cut false positives — I add a filter, the noise disappears, I ship it, and I never notice the rule also stopped catching the attack. It's silently dead and nobody finds out until the day it mattered. With a test, that's a failed build in 30 seconds.
+
+### What the tests found on the very first run
+
+This is the part I didn't expect, and it's the reason I'm writing this section at all.
+
+**`04_golden_ticket.yml` wasn't valid YAML.** It had been sitting in the repo broken. One of the `falsepositives` entries contained a colon:
+
+```yaml
+  - Normalize Account_Name before correlating 4768 vs 4769: in raw Windows
+```
+
+YAML read `4769:` as the start of a key/value pair and the parse failed. It was broken badly enough that `sigma check` crashed before it could even report an error on it.
+
+**All six rules had fake UUIDs.** I'd written ids like `1f4a8c2e-5b9d-4e67-8a21-kerb-01` because they *looked* like UUIDs and were easier to read. The Sigma spec requires a real one, and every rule failed validation.
+
+**Two rules matched everything.** This was the actual lesson.
+
+`03_bloodhound_path.yml` was just:
+
+```yaml
+detection:
+  selection:
+    EventID: 4662
+  condition: selection
+```
+
+That's "any directory access event in the domain." It fired on 5 ordinary `SYSTEM` reads in my normal-traffic baseline.
+
+`04_golden_ticket.yml` was worse, because it looked correct:
+
+```yaml
+condition: selection_tgs and not selection_tgt
+```
+
+I meant "a 4769 with no matching 4768." But a rule is evaluated against **one event at a time**, and any single event with ID 4769 is automatically not 4768 — so the condition is always true. It fired on every service ticket request in the baseline, including an account that *did* have its matching TGT sitting right there in the same file.
+
+My hand-written SPL for both of these was correct. The Sigma versions weren't, and I'd never noticed, because I'd read them rather than run them.
+
+### Fixing them
+
+**BloodHound** became a proper Sigma correlation rule — a base selection plus a `value_count` aggregate on top, because volume is the only honest signal SharpHound leaves:
+
+```spl
+source="WinEventLog:Security" EventCode=4662 NOT Account_Name="*$"
+| bin _time span=10m
+| stats dc(ObjectName) as value_count by _time Account_Name
+| search value_count >= 100
+```
+
+That's generated from the Sigma file now, and it matches the logic of the query I'd written by hand — the difference is this one is tested.
+
+**Golden Ticket couldn't be fixed**, and that turned out to be the more interesting finding. The detection is an *absence* correlation: event A exists, event B doesn't. Sigma's correlation types are `event_count`, `value_count`, `temporal`, `temporal_ordered`, `value_sum`, `value_avg`, `value_percentile`, `value_median` — `temporal` asserts events occur *together*, and there is no inverse. The detection genuinely cannot be expressed as a Sigma rule.
+
+So that file now ships an honest base selection plus the working SPL correlation, and the test manifest marks it `standalone: false` with the reason written out. Writing a Sigma rule that can't work, to avoid admitting a gap, would have been worse than the gap.
+
+### What I had to drop
+
+I wanted Sentinel/KQL as a third backend, since that's where I'm heading next. The conversion "worked" and produced this:
+
+```kql
+(EventID == 4769 and Ticket_Encryption_Type =~ "0x17") and (not(Account_Name endswith "$"))
+```
+
+Which is wrong. Those are raw Windows field names, and they aren't columns in Sentinel's `SecurityEvent` table — the query would reference fields that don't exist. Doing it properly needs a full field-mapping pipeline, the way the Elastic one correctly maps to ECS (`winlog.event_data.Account_Name`). I'd rather ship two backends that are right than three where one is quietly wrong, so Sentinel is tracked as its own piece of work.
+
+Elasticsearch also can't express Sigma correlation rules at all, so the BloodHound rule reaches Splunk only. That's a real limit of the target, not a broken rule, so `tools/generate_queries.py` records it in `queries/COVERAGE.md` — version-controlled, so losing coverage shows up as a diff instead of quietly disappearing.
+
+---
+
 ## Everything I Learned / Mistakes Worth Remembering
 
 These are the notes I'm keeping for myself going forward, not just a recap for a reader:
@@ -536,6 +618,11 @@ These are the notes I'm keeping for myself going forward, not just a recap for a
 6. **Golden Ticket detection ("TGS with no matching TGT") has to be computed in narrow time buckets**, not as a lifetime total, or legitimate unrelated activity elsewhere in the search window hides the real signature.
 7. **Restarting the Splunk forwarder is required after editing `inputs.conf`** — it doesn't pick up changes live.
 8. **Test risky/irreversible commands against a throwaway account first** (I did this for both the Golden Ticket `ticketer` syntax and the 5136 audit-rule setup) before running them against the real target account.
+9. **Reading a rule is not testing a rule.** I had reviewed all six of these by eye and would have told you they were fine. Two of them matched every event in the domain and one wasn't even parseable. Thirty seconds of running them against a sample found what weeks of looking at them didn't.
+10. **A condition that is always true looks exactly like logic.** `selection_tgs and not selection_tgt` reads like the thing I meant. It isn't, because rules evaluate one event at a time and there's no second event in scope to compare against. If a detection needs to reason about two events, it needs a correlation — not a cleverer condition.
+11. **Know what your tooling genuinely can't do.** Sigma has no absence correlation and Elasticsearch has no correlation support at all. Finding the wall and documenting it is a real result; writing something that looks like it clears the wall is how you end up trusting a detection that was never going to fire.
+12. **Separate base selections from alertable detections.** A broad selection that exists to feed a correlation is fine and shouldn't be judged by whether it matches normal traffic — that's its job. The mistake is shipping one as if it were a finished detection.
+13. **Two backends that are correct beat three where one is quietly wrong.** A generated query that references columns the target doesn't have is worse than no query, because it looks ready to deploy.
 
 ---
 
@@ -545,16 +632,29 @@ These are the notes I'm keeping for myself going forward, not just a recap for a
 AD-DetectLab/
 ├── README.md
 ├── architecture.png
+├── requirements.txt                 # pinned sigma-cli + backend versions
+├── .github/workflows/
+│   └── validate-detections.yml      # validate → test → check query drift, on every push
 ├── dashboards/
 │   ├── ad_detectlab_dashboard.xml
 │   └── ad_detectlab_dashboard_export.pdf
-├── detections/                      # Sigma-style detection rules, one per technique
+├── detections/                      # Sigma rules — the source of truth
 │   ├── 01_kerberoasting.yml
 │   ├── 02_asrep_roasting.yml
-│   ├── 03_bloodhound_path.yml
-│   ├── 04_golden_ticket.yml
+│   ├── 03_bloodhound_path.yml       # base rule + value_count correlation
+│   ├── 04_golden_ticket.yml         # base rule + SPL (see Part 9 for why)
 │   ├── 05_dcsync.yml
 │   └── 06_pass_the_hash.yml
+├── tests/
+│   ├── manifest.yml                 # which sample each rule is pinned to
+│   ├── run_tests.py                 # evaluates rules via pySigma, incl. correlations
+│   └── samples/                     # attack samples + one normal-traffic baseline
+├── tools/
+│   └── generate_queries.py          # Sigma → SPL / Lucene, writes the coverage table
+├── queries/                         # GENERATED — edit the Sigma rule, not these
+│   ├── COVERAGE.md                  # which rule reaches which backend, and why not
+│   ├── splunk/
+│   └── elastic/
 ├── concept-cards/                   # Plain-language notes per technique (Arabic)
 │   ├── 01-kerberoasting.md
 │   ├── 02-asrep-roasting.md

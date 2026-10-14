@@ -1,0 +1,26 @@
+[
+  {
+    "EventID": 4662,
+    "Account_Name": "karim@CORP.LOCAL",
+    "Object_Type": "domainDNS",
+    "Client_Address": "::ffff:192.168.154.129",
+    "_time": "2026-10-13T17:05:00Z",
+    "raw": "Object Name: DC=corp,DC=local\nProperties: Control Access\n\t1131f6aa-9c07-11d1-f79f-00c04fc2dcd2\n"
+  },
+  {
+    "EventID": 4662,
+    "Account_Name": "karim@CORP.LOCAL",
+    "Object_Type": "domainDNS",
+    "Client_Address": "::ffff:192.168.154.129",
+    "_time": "2026-10-13T17:05:01Z",
+    "raw": "Object Name: DC=corp,DC=local\nProperties: Control Access\n\t1131f6ad-9c07-11d1-f79f-00c04fc2dcd2\n"
+  },
+  {
+    "EventID": 4662,
+    "Account_Name": "karim@CORP.LOCAL",
+    "Object_Type": "domainDNS",
+    "Client_Address": "::ffff:192.168.154.129",
+    "_time": "2026-10-13T17:05:02Z",
+    "raw": "Object Name: DC=corp,DC=local\nProperties: Control Access\n\t1131f6aa-9c07-11d1-f79f-00c04fc2dcd2\n"
+  }
+]

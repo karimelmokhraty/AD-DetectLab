@@ -1,0 +1,53 @@
+# Test manifest for the detection rules in detections/
+#
+# Every rule is evaluated twice:
+#   1. against its own positive sample  -> must produce at least `min_matches`
+#   2. against the shared negative sample -> must produce ZERO matches
+#
+# The negative sample is an ordinary day on the lab domain: AES Kerberos
+# ticket requests with their matching TGTs, machine-account renewals, routine
+# directory reads, and legitimate Kerberos network logons. Nothing in it is
+# an attack, so a rule that matches anything here is too broad.
+#
+# NOTE ON FIELD NAMES: the samples use Sigma-canonical field names (EventID,
+# Account_Name, ...), so these tests check RULE LOGIC, not the per-backend
+# field mapping that `sigma convert` applies afterwards. Testing the mapped
+# field names against a real Splunk export is tracked separately.
+
+negative_sample: samples/normal_traffic.json
+
+tests:
+  - rule: detections/01_kerberoasting.yml
+    positive: samples/kerberoasting.positive.json
+    min_matches: 5          # one requester pulling many SPNs is the signal
+
+  - rule: detections/02_asrep_roasting.yml
+    positive: samples/asrep_roasting.positive.json
+    min_matches: 3
+
+  # Correlation rule: the unit here is a firing group, not an event. The base
+  # rule it references matches ordinary directory reads on purpose - only the
+  # volume aggregate on top of it is alertable.
+  - rule: detections/03_bloodhound_path.yml
+    positive: samples/bloodhound.positive.json
+    min_matches: 1
+
+  - rule: detections/04_golden_ticket.yml
+    positive: samples/golden_ticket.positive.json
+    min_matches: 3
+    standalone: false
+    reason: >
+      Sigma has no absence-correlation type, so "a TGS request with no matching
+      TGT" cannot be expressed as a rule. This file ships an honest base
+      selection plus the working SPL correlation; the base selection matches
+      every normal service ticket request by design, so asserting zero against
+      the baseline would be meaningless. Tracked as a known gap rather than
+      papered over with a rule that cannot work.
+
+  - rule: detections/05_dcsync.yml
+    positive: samples/dcsync.positive.json
+    min_matches: 3
+
+  - rule: detections/06_pass_the_hash.yml
+    positive: samples/pass_the_hash.positive.json
+    min_matches: 2

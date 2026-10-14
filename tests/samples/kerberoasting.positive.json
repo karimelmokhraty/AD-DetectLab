@@ -1,0 +1,50 @@
+[
+  {
+    "EventID": 4769,
+    "Account_Name": "karim@CORP.LOCAL",
+    "Service_Name": "svc-sql",
+    "Ticket_Encryption_Type": "0x17",
+    "Client_Address": "::ffff:192.168.154.129",
+    "_time": "2026-10-13T14:00:10Z"
+  },
+  {
+    "EventID": 4769,
+    "Account_Name": "karim@CORP.LOCAL",
+    "Service_Name": "svc-backup",
+    "Ticket_Encryption_Type": "0x17",
+    "Client_Address": "::ffff:192.168.154.129",
+    "_time": "2026-10-13T14:00:13Z"
+  },
+  {
+    "EventID": 4769,
+    "Account_Name": "karim@CORP.LOCAL",
+    "Service_Name": "svc-web",
+    "Ticket_Encryption_Type": "0x17",
+    "Client_Address": "::ffff:192.168.154.129",
+    "_time": "2026-10-13T14:01:16Z"
+  },
+  {
+    "EventID": 4769,
+    "Account_Name": "karim@CORP.LOCAL",
+    "Service_Name": "svc-report",
+    "Ticket_Encryption_Type": "0x17",
+    "Client_Address": "::ffff:192.168.154.129",
+    "_time": "2026-10-13T14:01:19Z"
+  },
+  {
+    "EventID": 4769,
+    "Account_Name": "karim@CORP.LOCAL",
+    "Service_Name": "svc-scan",
+    "Ticket_Encryption_Type": "0x17",
+    "Client_Address": "::ffff:192.168.154.129",
+    "_time": "2026-10-13T14:02:22Z"
+  },
+  {
+    "EventID": 4769,
+    "Account_Name": "karim@CORP.LOCAL",
+    "Service_Name": "svc-print",
+    "Ticket_Encryption_Type": "0x17",
+    "Client_Address": "::ffff:192.168.154.129",
+    "_time": "2026-10-13T14:02:25Z"
+  }
+]

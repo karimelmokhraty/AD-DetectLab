@@ -1,0 +1,171 @@
+[
+  {
+    "EventID": 4768,
+    "Account_Name": "nikki.white",
+    "Pre_Authentication_Type": "2",
+    "Ticket_Encryption_Type": "0x12",
+    "Client_Address": "::ffff:192.168.154.20",
+    "_time": "2026-10-13T09:00:05Z"
+  },
+  {
+    "EventID": 4769,
+    "Account_Name": "nikki.white@CORP.LOCAL",
+    "Service_Name": "cifs/DC01",
+    "Ticket_Encryption_Type": "0x12",
+    "Client_Address": "::ffff:192.168.154.20",
+    "_time": "2026-10-13T09:00:07Z"
+  },
+  {
+    "EventID": 4768,
+    "Account_Name": "omar.adel",
+    "Pre_Authentication_Type": "2",
+    "Ticket_Encryption_Type": "0x12",
+    "Client_Address": "::ffff:192.168.154.20",
+    "_time": "2026-10-13T09:01:05Z"
+  },
+  {
+    "EventID": 4769,
+    "Account_Name": "omar.adel@CORP.LOCAL",
+    "Service_Name": "cifs/DC01",
+    "Ticket_Encryption_Type": "0x12",
+    "Client_Address": "::ffff:192.168.154.20",
+    "_time": "2026-10-13T09:01:07Z"
+  },
+  {
+    "EventID": 4768,
+    "Account_Name": "rwnaa.osama",
+    "Pre_Authentication_Type": "2",
+    "Ticket_Encryption_Type": "0x12",
+    "Client_Address": "::ffff:192.168.154.20",
+    "_time": "2026-10-13T09:02:05Z"
+  },
+  {
+    "EventID": 4769,
+    "Account_Name": "rwnaa.osama@CORP.LOCAL",
+    "Service_Name": "cifs/DC01",
+    "Ticket_Encryption_Type": "0x12",
+    "Client_Address": "::ffff:192.168.154.20",
+    "_time": "2026-10-13T09:02:07Z"
+  },
+  {
+    "EventID": 4768,
+    "Account_Name": "yassine.m",
+    "Pre_Authentication_Type": "2",
+    "Ticket_Encryption_Type": "0x12",
+    "Client_Address": "::ffff:192.168.154.20",
+    "_time": "2026-10-13T09:03:05Z"
+  },
+  {
+    "EventID": 4769,
+    "Account_Name": "yassine.m@CORP.LOCAL",
+    "Service_Name": "cifs/DC01",
+    "Ticket_Encryption_Type": "0x12",
+    "Client_Address": "::ffff:192.168.154.20",
+    "_time": "2026-10-13T09:03:07Z"
+  },
+  {
+    "EventID": 4769,
+    "Account_Name": "WS01$",
+    "Service_Name": "krbtgt",
+    "Ticket_Encryption_Type": "0x17",
+    "Client_Address": "::ffff:192.168.154.20",
+    "_time": "2026-10-13T09:30:00Z"
+  },
+  {
+    "EventID": 4769,
+    "Account_Name": "WS02$",
+    "Service_Name": "krbtgt",
+    "Ticket_Encryption_Type": "0x17",
+    "Client_Address": "::ffff:192.168.154.20",
+    "_time": "2026-10-13T09:31:00Z"
+  },
+  {
+    "EventID": 4769,
+    "Account_Name": "WS03$",
+    "Service_Name": "krbtgt",
+    "Ticket_Encryption_Type": "0x17",
+    "Client_Address": "::ffff:192.168.154.20",
+    "_time": "2026-10-13T09:32:00Z"
+  },
+  {
+    "EventID": 4662,
+    "Account_Name": "SYSTEM",
+    "Object_Type": "user",
+    "Client_Address": "-",
+    "_time": "2026-10-13T10:10:00Z",
+    "raw": "Object Name: CN=Users,DC=corp,DC=local\nProperties: Read Property",
+    "ObjectName": "CN=Users,DC=corp,DC=local"
+  },
+  {
+    "EventID": 4662,
+    "Account_Name": "SYSTEM",
+    "Object_Type": "user",
+    "Client_Address": "-",
+    "_time": "2026-10-13T10:11:00Z",
+    "raw": "Object Name: CN=Users,DC=corp,DC=local\nProperties: Read Property",
+    "ObjectName": "CN=Users,DC=corp,DC=local"
+  },
+  {
+    "EventID": 4662,
+    "Account_Name": "SYSTEM",
+    "Object_Type": "user",
+    "Client_Address": "-",
+    "_time": "2026-10-13T10:12:00Z",
+    "raw": "Object Name: CN=Users,DC=corp,DC=local\nProperties: Read Property",
+    "ObjectName": "CN=Users,DC=corp,DC=local"
+  },
+  {
+    "EventID": 4662,
+    "Account_Name": "SYSTEM",
+    "Object_Type": "user",
+    "Client_Address": "-",
+    "_time": "2026-10-13T10:13:00Z",
+    "raw": "Object Name: CN=Users,DC=corp,DC=local\nProperties: Read Property",
+    "ObjectName": "CN=Users,DC=corp,DC=local"
+  },
+  {
+    "EventID": 4662,
+    "Account_Name": "SYSTEM",
+    "Object_Type": "user",
+    "Client_Address": "-",
+    "_time": "2026-10-13T10:14:00Z",
+    "raw": "Object Name: CN=Users,DC=corp,DC=local\nProperties: Read Property",
+    "ObjectName": "CN=Users,DC=corp,DC=local"
+  },
+  {
+    "EventID": 4624,
+    "Account_Name": "omar.adel",
+    "Logon_Type": 3,
+    "Authentication_Package": "Kerberos",
+    "Workstation_Name": "WS01",
+    "Client_Address": "::ffff:192.168.154.20",
+    "_time": "2026-10-13T11:00:30Z"
+  },
+  {
+    "EventID": 4624,
+    "Account_Name": "omar.adel",
+    "Logon_Type": 3,
+    "Authentication_Package": "Kerberos",
+    "Workstation_Name": "WS01",
+    "Client_Address": "::ffff:192.168.154.20",
+    "_time": "2026-10-13T11:01:30Z"
+  },
+  {
+    "EventID": 4624,
+    "Account_Name": "omar.adel",
+    "Logon_Type": 3,
+    "Authentication_Package": "Kerberos",
+    "Workstation_Name": "WS01",
+    "Client_Address": "::ffff:192.168.154.20",
+    "_time": "2026-10-13T11:02:30Z"
+  },
+  {
+    "EventID": 4624,
+    "Account_Name": "rwnaa.osama",
+    "Logon_Type": 2,
+    "Authentication_Package": "Negotiate",
+    "Workstation_Name": "WS01",
+    "Client_Address": "127.0.0.1",
+    "_time": "2026-10-13T08:45:00Z"
+  }
+]

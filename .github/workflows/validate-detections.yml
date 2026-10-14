@@ -1,0 +1,70 @@
+name: Validate detections
+
+# Treat detection rules the way code is treated: every change to a rule is
+# validated, tested against saved log samples, and its generated queries are
+# checked for drift before it can land.
+on:
+  push:
+    paths:
+      - 'detections/**'
+      - 'tests/**'
+      - 'tools/**'
+      - 'queries/**'
+      - 'requirements.txt'
+      - '.github/workflows/validate-detections.yml'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install sigma-cli and backends
+        run: pip install -r requirements.txt
+
+      # 1. Is every rule valid Sigma?
+      #
+      # This is the check that would have caught 04_golden_ticket.yml being
+      # broken YAML, and all six rules carrying fake UUIDs instead of real
+      # ones -- both of which sat in the repo unnoticed.
+      - name: Validate rule syntax
+        run: sigma check detections/
+
+      # 2. Does every rule still do what it claims?
+      #
+      # Each rule runs against an attack sample it must match and a
+      # normal-traffic baseline it must not. This is what catches a rule being
+      # tuned into silence: the false positives go away, the detection breaks,
+      # and without this step nobody finds out.
+      - name: Test rules against log samples
+        run: python tests/run_tests.py
+
+      # 3. Do the committed queries still match their Sigma source?
+      #
+      # Everything under queries/ is generated. Regenerating and diffing means
+      # a hand-edited query, or a rule changed without regenerating, fails
+      # here instead of drifting out of sync with the rule it came from.
+      - name: Check generated queries are up to date
+        run: |
+          python tools/generate_queries.py
+          if ! git diff --exit-code --stat queries/; then
+            echo ""
+            echo "::error::queries/ is out of date with detections/."
+            echo "Run 'python tools/generate_queries.py' and commit the result."
+            exit 1
+          fi
+
+      - name: Upload generated queries
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: detection-queries
+          path: queries/

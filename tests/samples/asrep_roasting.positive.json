@@ -1,0 +1,26 @@
+[
+  {
+    "EventID": 4768,
+    "Account_Name": "svc-helpdesk",
+    "Pre_Authentication_Type": "0",
+    "Ticket_Encryption_Type": "0x17",
+    "Client_Address": "::ffff:192.168.154.129",
+    "_time": "2026-10-13T14:12:05Z"
+  },
+  {
+    "EventID": 4768,
+    "Account_Name": "svc-legacy",
+    "Pre_Authentication_Type": "0",
+    "Ticket_Encryption_Type": "0x17",
+    "Client_Address": "::ffff:192.168.154.129",
+    "_time": "2026-10-13T14:12:07Z"
+  },
+  {
+    "EventID": 4768,
+    "Account_Name": "CARMEN_CAMPBELL",
+    "Pre_Authentication_Type": "0",
+    "Ticket_Encryption_Type": "0x17",
+    "Client_Address": "::ffff:192.168.154.129",
+    "_time": "2026-10-13T14:12:09Z"
+  }
+]

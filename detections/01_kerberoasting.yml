@@ -1,5 +1,5 @@
 title: Kerberoasting - RC4 Service Ticket Requests
-id: 1f4a8c2e-5b9d-4e67-8a21-kerb-01
+id: e1c233c9-0f23-4ce0-9e66-52571803c579  # kerberoasting
 status: experimental
 description: |
   Detects Kerberos Service Ticket (TGS, Event 4769) requests encrypted

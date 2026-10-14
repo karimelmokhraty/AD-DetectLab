@@ -1,0 +1,20 @@
+[
+  {
+    "EventID": 4624,
+    "Account_Name": "Administrator",
+    "Logon_Type": 3,
+    "Authentication_Package": "NTLM",
+    "Workstation_Name": "KALI",
+    "Client_Address": "::ffff:192.168.154.129",
+    "_time": "2026-10-13T18:02:14Z"
+  },
+  {
+    "EventID": 4624,
+    "Account_Name": "Administrator",
+    "Logon_Type": 3,
+    "Authentication_Package": "NTLM",
+    "Workstation_Name": "KALI",
+    "Client_Address": "::ffff:192.168.154.129",
+    "_time": "2026-10-13T18:02:20Z"
+  }
+]

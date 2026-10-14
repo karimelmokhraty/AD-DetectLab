@@ -1,0 +1,42 @@
+[
+  {
+    "EventID": 4769,
+    "Account_Name": "Administrator@CORP.LOCAL",
+    "Service_Name": "DC01$",
+    "Ticket_Encryption_Type": "0x12",
+    "Client_Address": "::ffff:192.168.154.129",
+    "_time": "2026-10-13T16:20:11Z"
+  },
+  {
+    "EventID": 4769,
+    "Account_Name": "Administrator@CORP.LOCAL",
+    "Service_Name": "DC01$",
+    "Ticket_Encryption_Type": "0x12",
+    "Client_Address": "::ffff:192.168.154.129",
+    "_time": "2026-10-13T16:20:16Z"
+  },
+  {
+    "EventID": 4769,
+    "Account_Name": "Administrator@CORP.LOCAL",
+    "Service_Name": "DC01$",
+    "Ticket_Encryption_Type": "0x12",
+    "Client_Address": "::ffff:192.168.154.129",
+    "_time": "2026-10-13T16:20:21Z"
+  },
+  {
+    "EventID": 4768,
+    "Account_Name": "nikki.white",
+    "Pre_Authentication_Type": "2",
+    "Ticket_Encryption_Type": "0x12",
+    "Client_Address": "::ffff:192.168.154.20",
+    "_time": "2026-10-13T16:21:02Z"
+  },
+  {
+    "EventID": 4769,
+    "Account_Name": "nikki.white@CORP.LOCAL",
+    "Service_Name": "cifs/DC01",
+    "Ticket_Encryption_Type": "0x12",
+    "Client_Address": "::ffff:192.168.154.20",
+    "_time": "2026-10-13T16:21:04Z"
+  }
+]

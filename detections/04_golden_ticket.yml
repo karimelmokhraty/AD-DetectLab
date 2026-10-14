@@ -1,14 +1,40 @@
-title: Golden Ticket - TGS Request Without Matching TGT (AS-REQ)
-id: 7c9e1f3a-2b5d-4e8a-9c1f-golden-ticket-04
+# ---------------------------------------------------------------------------
+# A NOTE ON WHY THIS FILE LOOKS DIFFERENT FROM THE OTHERS
+#
+# The detection for a Golden Ticket is "a TGS request (4769) exists for an
+# account, and NO matching TGT request (4768) exists for it in the same
+# window". That is an ABSENCE correlation, and the Sigma specification has no
+# way to express it: the available correlation types are event_count,
+# value_count, temporal, temporal_ordered, value_sum, value_avg,
+# value_percentile and value_median. `temporal` asserts that events occur
+# TOGETHER - there is no inverse.
+#
+# The first version of this file tried to express it anyway:
+#
+#     condition: selection_tgs and not selection_tgt
+#
+# That looks right and is completely wrong. Evaluated against a single event,
+# any event with ID 4769 is automatically "not 4768", so the condition is
+# always true and the rule fires on EVERY service ticket request in the
+# domain. The rule tests caught it firing on 4 ordinary events in the normal
+# traffic baseline - including an account that did have its matching 4768.
+#
+# So this file now ships what is actually true: a base selection in Sigma,
+# and the real detection as the SPL correlation at the bottom. Faking a
+# Sigma rule that cannot work would be worse than documenting the limit.
+# ---------------------------------------------------------------------------
+
+title: Kerberos Service Ticket Request By A User Account
+name: kerberos_tgs_request_by_user
+id: af986f4c-6bd5-464a-b727-75a643a55482  # golden-ticket
 status: experimental
 description: |
-  Detects Kerberos Service Ticket (TGS, Event 4769) requests for an account
-  with no corresponding Ticket Granting Ticket (TGT, Event 4768) request in
-  the same time window. A forged TGT built offline using the krbtgt hash
-  (Golden Ticket, T1558.001) is never requested from the Domain Controller
-  via a normal AS-REQ, so it never produces a 4768 event — but it is still
-  accepted by the DC for service ticket requests, producing 4769 events.
-  This gap (TGS present, TGT absent) is the core detection logic.
+  Base selection for Kerberos Service Ticket requests (Event 4769) made by a
+  user account rather than a machine account.
+
+  This is NOT a standalone detection - on its own it matches every normal
+  service ticket request in the domain. It is the input to the Golden Ticket
+  correlation documented below, which Sigma cannot express natively.
 author: Karim Elmokhraty
 date: 2026-10-13
 references:
@@ -16,34 +42,33 @@ references:
 logsource:
   product: windows
   service: security
-  category: authentication
 detection:
-  selection_tgt:
-    EventID: 4768
   selection_tgs:
     EventID: 4769
   filter_machine_accounts:
     Account_Name|endswith: '$'
-  condition: selection_tgs and not selection_tgt and not filter_machine_accounts
+  condition: selection_tgs and not filter_machine_accounts
 fields:
   - Account_Name
   - Client_Address
   - Service_Name
   - Ticket_Encryption_Type
-falsepositives:
-  - Machine accounts ($) performing background ticket renewal outside the
-    search window (must be excluded, see filter above)
-  - Normalize Account_Name before correlating 4768 vs 4769: in raw Windows
-    Security events, 4768's Account_Name has no @domain suffix while 4769's
-    does (e.g. "karim" vs "karim@CORP.LOCAL") - without stripping this,
-    every account will incorrectly show AS_REQ_count=0
-  - A TGT requested outside the search time range (widen the window or
-    confirm with a dedicated search for EventID=4768 by Account_Name)
-level: high
+level: informational
 tags:
   - attack.credential_access
   - attack.t1558.001
   - attack.defense_evasion
+
+detection_logic: |
+  Why the gap exists at all:
+
+  A Golden Ticket is a TGT forged offline from the krbtgt account's hash. It
+  is never requested from the Domain Controller, so it never produces a 4768
+  (AS-REQ) event. But the DC still accepts it when the attacker asks for
+  service tickets, and those requests DO produce 4769 events.
+
+  The result is an account with service ticket activity and no preceding
+  ticket-granting request. That gap is the detection.
 
 splunk_query: |
   index=ad_lab (EventCode=4768 OR EventCode=4769)
@@ -51,3 +76,22 @@ splunk_query: |
   | search Account_Name!="*$"
   | stats count(eval(EventCode=4768)) as AS_REQ_count, count(eval(EventCode=4769)) as TGS_count by Account_Name
   | where AS_REQ_count=0 AND TGS_count>0
+
+implementation_notes: |
+  - Normalize Account_Name before correlating 4768 against 4769. In raw
+    Windows Security events 4768's Account_Name has no @domain suffix while
+    4769's does ("karim" vs "karim@CORP.LOCAL"). Without stripping it, every
+    account shows AS_REQ_count=0 and the whole domain looks compromised.
+  - Machine accounts ($) renew tickets in the background and must be excluded,
+    or they dominate the results.
+  - A TGT requested just outside the search window produces the same gap as a
+    forged ticket. Widen the window, or confirm a hit with a dedicated search
+    for EventID=4768 by that Account_Name before escalating.
+  - Bucket by time (`bucket _time span=1h`) when running over a long range.
+    Over a wide window, unrelated legitimate activity fills the gap and the
+    signal disappears.
+
+falsepositives:
+  - Machine accounts performing background ticket renewal (excluded above)
+  - A TGT requested outside the search time range
+  - Long search windows without time bucketing, which mask the gap

@@ -1,5 +1,5 @@
 title: Pass-the-Hash - NTLM Authentication for Privileged Account
-id: 3d8f5a1e-7c2b-4e9d-a650-pth-06
+id: d2a30743-c309-409c-9ed5-46d9b643ac0e  # pass-the-hash
 status: experimental
 description: |
   Detects NTLM-authenticated network logons (Logon Type 3) for accounts

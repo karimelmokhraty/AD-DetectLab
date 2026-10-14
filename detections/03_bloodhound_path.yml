@@ -1,45 +1,90 @@
-title: BloodHound-style AD Attack Path Recon
-id: 7f1a4e2c-8b35-4d19-a001-bhound-03
+# Two documents in one file:
+#   1. a BASE rule that selects the raw events (too broad to alert on by itself)
+#   2. a CORRELATION rule that turns those events into an actual detection
+#
+# This split is deliberate. The first version of this file alerted on bare
+# `EventID: 4662`, which matches every directory read in the domain - it fired
+# on ordinary SYSTEM activity in the test baseline. SharpHound collection has
+# no distinctive event of its own, so the only honest signal is VOLUME, and
+# volume cannot be expressed in a single-event rule.
+
+title: Directory Object Access By A User Account
+name: directory_object_access_by_user
+id: 9c6c8e27-4e0a-4a8c-9a3b-1d2f5e7b8c40
 status: experimental
 description: |
-  BloodHound (and SharpHound collection) is reconnaissance, not exploitation
-  - it does not generate a single distinctive Windows event by itself.
-  Detection here focuses on the *collection* step (LDAP/SMB/WMI enumeration
-  volume from a single non-DC source against many objects in a short window)
-  rather than a specific event ID, since the graph analysis itself happens
-  offline in Neo4j and produces no telemetry on the domain.
+  Base selection for Directory Service Access (Event 4662) performed by a
+  user account rather than a machine account or a DC.
+
+  This is NOT a standalone detection - on its own it matches normal domain
+  activity. It exists to be consumed by the correlation rule below.
+author: Karim Elmokhraty
+date: 2026-10-13
+logsource:
+  product: windows
+  service: security
+detection:
+  selection:
+    EventID: 4662
+  filter_machine_accounts:
+    Account_Name|endswith: '$'
+  condition: selection and not filter_machine_accounts
+fields:
+  - Account_Name
+  - ObjectName
+  - Client_Address
+level: informational
+---
+title: BloodHound-style AD Attack Path Recon
+id: 68bff16a-9e75-4f7c-ae9b-729b4faa42c8  # bloodhound
+status: experimental
+description: |
+  BloodHound (and SharpHound collection) is reconnaissance, not exploitation -
+  it produces no distinctive Windows event of its own. Collection runs on
+  ordinary LDAP reads and SMB/WMI session enumeration, which is exactly what a
+  healthy domain-joined machine does all day. The graph analysis itself happens
+  offline in Neo4j and leaves no telemetry on the domain at all.
+
+  So this detection targets the only thing that actually stands out: a single
+  account touching an abnormal NUMBER OF DISTINCT OBJECTS in a short window.
+
+  Treat this as a weak proxy signal, not a reliable indicator. It is tuned to
+  breadth of enumeration, and a legitimate inventory or compliance scan looks
+  the same. The durable answer to BloodHound is fewer privilege paths to find,
+  not a sharper alert - see the defensive recommendation below.
 author: Karim Elmokhraty
 date: 2026-10-13
 references:
   - https://attack.mitre.org/techniques/T1087/002/
   - https://attack.mitre.org/techniques/T1482/
-logsource:
-  product: windows
-  service: security
-  category: directory_service_access
-detection:
-  selection:
-    EventID: 4662
-  condition: selection
-fields:
-  - Account_Name
-  - Client_Address
+correlation:
+  type: value_count
+  rules:
+    - directory_object_access_by_user
+  group-by:
+    - Account_Name
+  timespan: 10m
+  condition:
+    gte: 100
+    field: ObjectName
 falsepositives:
   - Legitimate AD auditing/inventory tools (e.g. scheduled compliance scans)
   - Help-desk or sysadmin tooling that enumerates group membership broadly
+  - Backup and directory-replication products performing scheduled sweeps
 level: medium
 tags:
   - attack.discovery
   - attack.t1087.002
   - attack.t1482
 
-splunk_query: |
-  # High-volume LDAP read activity from a single account in a short window
-  # is a weak but useful proxy signal for SharpHound-style collection.
-  index=ad_lab EventCode=4662
-  | bucket _time span=10m
-  | stats dc(guid) as distinct_objects_touched by Account_Name, _time
-  | where distinct_objects_touched > 100
+defensive_recommendation: |
+  Volume detection buys you very little here, so do not rely on it:
+    - Reduce unnecessary privilege paths (Tier-0 separation, least privilege)
+      so that what BloodHound maps is uninteresting.
+    - Audit the GenericAll / WriteDacl / AllExtendedRights sprawl nobody
+      reviews - those edges are what turn recon into escalation.
+    - Run BloodHound against your own domain on a schedule. An attacker will
+      find those paths; better that you find them first.
 
 observed_in_lab: |
   BloodHound CE used to map shortest path karim -> DOMAIN ADMINS, revealing
